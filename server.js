@@ -7,7 +7,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const EDITOR_PASSWORD = 'sex';
 let WIN_KILLS = 25;
 const VOTE_DURATION = 20000;
@@ -526,7 +526,6 @@ function handleAdminAction(msg) {
   }
 }
 
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🎮 Sunucu başlatıldı → Port: ${PORT}`);
 });
