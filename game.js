@@ -142,7 +142,12 @@ function connectWebSocket(playerName) {
   ws = new WebSocket(`${protocol}://${host}`);
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', name: playerName, team: selectedTeam }));
+    // Bağlantı açıldıktan hemen sonra gönderimde hata olmaması için kısa bir bekleme
+    setTimeout(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'join', name: playerName, team: selectedTeam }));
+      }
+    }, 100);
   };
 
   ws.onmessage = (event) => {
@@ -181,7 +186,7 @@ function closeChat() {
 
 function sendChatMessage() {
   const text = chatInput.value.trim();
-  if (text) {
+  if (text && ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'chat', text }));
   }
   closeChat();
@@ -242,9 +247,16 @@ function updateAdminPlayerList() {
     adminPlayerList.appendChild(item);
   }
 }
+function sendTeamSelect(team) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'team_select', team }));
+  }
+}
 
 function adminAction(action, targetId, extra = {}) {
-  ws.send(JSON.stringify({ type: 'admin_action', action, targetId, ...extra }));
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'admin_action', action, targetId, ...extra }));
+  }
 }
 
 function adminChangeMap() {
@@ -810,14 +822,16 @@ document.addEventListener('keydown', (e) => {
   }
 
   // Silah Değiştirme ve Reload
-  if (e.key === '1') {
-    ws.send(JSON.stringify({ type: 'switch_weapon', weapon: 'gun' }));
-  }
-  if (e.key === '2') {
-    ws.send(JSON.stringify({ type: 'switch_weapon', weapon: 'knife' }));
-  }
-  if (e.key.toLowerCase() === 'r') {
-    ws.send(JSON.stringify({ type: 'reload' }));
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    if (e.key === '1') {
+      ws.send(JSON.stringify({ type: 'switch_weapon', weapon: 'gun' }));
+    }
+    if (e.key === '2') {
+      ws.send(JSON.stringify({ type: 'switch_weapon', weapon: 'knife' }));
+    }
+    if (e.key.toLowerCase() === 'r') {
+      ws.send(JSON.stringify({ type: 'reload' }));
+    }
   }
 
   // Kontrol Paneli (")
@@ -874,7 +888,9 @@ document.addEventListener('mousedown', (e) => {
   const screenPY = me.y - camY;
   const angle = Math.atan2(mouseY - screenPY, mouseX - screenPX);
 
-  ws.send(JSON.stringify({ type: 'shoot', angle }));
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'shoot', angle }));
+  }
   
   if (me.weapon === 'gun') {
     playShootSound();
