@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NİŞANCI — 2D Çok Oyunculu Nişancı</title>
+  <meta name="description"
+    content="Gerçek zamanlı 2D üstten görünüm çok oyunculu nişancı oyunu. Counter-Strike tarzı, tamamen Türkçe." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- ============ EKRAN: GİRİŞ ============ -->
+  <div id="login-screen" class="screen active">
+    <div class="login-bg">
+      <div class="login-particles" id="particles"></div>
+      <div class="login-card">
+        <div class="logo">
+          <span class="logo-icon">🎯</span>
+          <h1 class="logo-text">NİŞANCI</h1>
+          <p class="logo-sub">2D Çok Oyunculu Nişancı</p>
+        </div>
+        <div class="form-group">
+          <label for="player-name">Oyuncu Adı</label>
+          <input type="text" id="player-name" maxlength="16" placeholder="Adını gir..." autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label>Takım Seçimi</label>
+          <div class="team-select">
+            <button id="btn-team-t" class="team-btn t-btn" onclick="selectTeam('T')">🔴 TERÖRİST</button>
+            <button id="btn-team-ct" class="team-btn ct-btn" onclick="selectTeam('CT')">🔵 KARŞI-TERÖRİST</button>
+          </div>
+        </div>
+        <button id="join-btn" class="btn-primary" onclick="startGame()">
+          <span>OYUNA GİR</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+        <div class="login-info">
+          <div class="info-row"><span class="key-badge">WASD</span> Hareket</div>
+          <div class="info-row"><span class="key-badge">🖱️</span> Nişan Al</div>
+          <div class="info-row"><span class="key-badge">LMB</span> Ateş Et</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ EKRAN: OYUN ============ -->
+  <div id="game-screen" class="screen">
+    <!-- Üst HUD -->
+    <div id="hud-top">
+      <div class="hud-left">
+        <div id="team-badge" class="team-badge">T</div>
+        <div class="player-info">
+          <span id="hud-name">Oyuncu</span>
+          <div class="health-bar-wrap">
+            <div class="health-bar-bg">
+              <div id="health-bar" class="health-bar"></div>
+            </div>
+            <span id="health-text">100</span>
+          </div>
+        </div>
+      </div>
+      <div class="hud-center">
+        <div class="score-board">
+          <div class="kill-progress">
+            <span class="team-label t-team">T</span>
+            <span id="score-t" class="score-val">0</span>
+            <div class="kill-bar-wrap">
+              <div id="kill-bar-t" class="kill-bar kill-bar-t" style="width:0%"></div>
+            </div>
+            <span class="kill-goal">/25</span>
+          </div>
+          <div class="vs-sep">VS</div>
+          <div class="kill-progress">
+            <span class="kill-goal">25/</span>
+            <div class="kill-bar-wrap">
+              <div id="kill-bar-ct" class="kill-bar kill-bar-ct" style="width:0%"></div>
+            </div>
+            <span id="score-ct" class="score-val">0</span>
+            <span class="team-label ct-team">CT</span>
+          </div>
+        </div>
+        <div id="status-msg" class="status-msg"></div>
+        <div id="map-name-label" class="map-label"></div>
+      </div>
+      <div class="hud-right">
+        <div class="stat-box">
+          <span class="stat-label">ÖLDÜRME</span>
+          <span id="stat-kills" class="stat-val kills">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">ÖLÜM</span>
+          <span id="stat-deaths" class="stat-val deaths">0</span>
+        </div>
+        <div id="player-count" class="player-count">👤 0</div>
+      </div>
+    </div>
+
+    <!-- Oyun Kanvası -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Öldürme Akışı -->
+    <div id="kill-feed"></div>
+
+    <!-- Yeniden Doğma Ekranı -->
+    <div id="respawn-overlay" class="hidden">
+      <div class="respawn-box">
+        <div class="skull">💀</div>
+        <h2>ÖLDÜN</h2>
+        <p id="respawn-timer">3 saniye içinde yeniden doğacaksın...</p>
+      </div>
+    </div>
+
+    <!-- Hasar Flaşı -->
+    <div id="damage-flash" class="hidden"></div>
+
+    <!-- Crosshair -->
+    <!-- Crosshair -->
+    <div id="crosshair">
+      <div class="ch-line ch-top"></div>
+      <div class="ch-line ch-bottom"></div>
+      <div class="ch-line ch-left"></div>
+      <div class="ch-line ch-right"></div>
+      <div class="ch-dot"></div>
+    </div>
+
+    <!-- Silah HUD (Sabit) -->
+    <div id="weapon-hud">
+      <div id="weapon-icon">🔫</div>
+      <div id="ammo-display">
+        <span id="hud-ammo" class="ammo-current">10</span>
+        <span class="ammo-sep">/</span>
+        <span id="hud-reserve" class="ammo-reserve">30</span>
+      </div>
+      <div id="reload-text" class="hidden">YENİLENİYOR...</div>
+      <div id="weapon-keys">
+        <span id="key-1" class="wkey active">1</span>
+        <span id="key-2" class="wkey">2</span>
+      </div>
+    </div>
+
+    <!-- Skor Tablosu (Tab) -->
+    <div id="scoreboard" class="hidden">
+      <div class="sb-container">
+        <h2 class="sb-title">SKOR TABLOSU</h2>
+        <div class="sb-teams">
+          <div class="sb-team">
+            <h3 class="sb-team-label t-team">🔴 TERÖRİSTLER</h3>
+            <table class="sb-table">
+              <thead>
+                <tr>
+                  <th>Oyuncu</th>
+                  <th>K</th>
+                  <th>Ö</th>
+                  <th>K/Ö</th>
+                </tr>
+              </thead>
+              <tbody id="sb-t"></tbody>
+            </table>
+          </div>
+          <div class="sb-team">
+            <h3 class="sb-team-label ct-team">🔵 KARŞI-TERÖRİSTLER</h3>
+            <table class="sb-table">
+              <thead>
+                <tr>
+                  <th>Oyuncu</th>
+                  <th>K</th>
+                  <th>Ö</th>
+                  <th>K/Ö</th>
+                </tr>
+              </thead>
+              <tbody id="sb-ct"></tbody>
+            </table>
+          </div>
+        </div>
+        <p class="sb-hint">Kapatmak için TAB'a bas</p>
+      </div>
+    </div>
+
+    <!-- Harita Oylama Ekranı -->
+    <div id="vote-overlay" class="hidden">
+      <div class="vote-container">
+        <div id="vote-winner-banner" class="winner-banner"></div>
+        <h2 class="vote-title">🗺️ HARİTA OYLAMA</h2>
+        <p class="vote-sub">Sonraki turda oynamak istediğin haritayı seç!</p>
+        <div id="vote-timer-bar-wrap">
+          <div id="vote-timer-bar"></div>
+        </div>
+        <p id="vote-timer-text" class="vote-timer-text">20 saniye</p>
+        <div id="vote-map-list" class="vote-map-list"></div>
+        <p id="vote-status" class="vote-status"></p>
+      </div>
+    </div>
+
+    <!-- Takım Seçimi Ekranı (turlar arası) -->
+    <div id="team-select-overlay" class="hidden">
+      <canvas id="ts-canvas"></canvas>
+      <div class="ts-panel">
+        <p id="ts-map-name" class="ts-map-name">🗺️ Harita yükleniyor...</p>
+        <h2 class="ts-title">TAKIMINı SEÇ</h2>
+        <div id="ts-timer-bar-wrap">
+          <div id="ts-timer-bar"></div>
+        </div>
+        <p id="ts-timer-text" class="ts-timer-text">10 saniye</p>
+        <div class="ts-buttons">
+          <button class="ts-btn t-ts-btn" id="ts-btn-t" onclick="sendTeamSelect('T')">🔴 TERÖRİST</button>
+          <button class="ts-btn ct-ts-btn" id="ts-btn-ct" onclick="sendTeamSelect('CT')">🔵 KARŞI-TERÖRİST</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Sistemi -->
+    <div id="chat-container">
+      <div id="chat-messages"></div>
+      <div id="chat-input-wrap">
+        <input type="text" id="chat-input" placeholder="Mesaj yaz... (Enter)" maxlength="100" autocomplete="off">
+      </div>
+    </div>
+
+    <!-- Kontroller Yardım Butonu & Paneli -->
+    <div id="controls-hint-btn" onclick="toggleControls()">⌨️ KONTROLLER</div>
+    <div id="controls-overlay" class="hidden">
+      <div class="controls-card">
+        <div class="controls-close" onclick="toggleControls()">✕</div>
+        <h2>🎮 OYUN KONTROLLERİ</h2>
+        <div class="controls-grid">
+          <div class="c-item"><span class="c-key">W,A,S,D</span> <span>Hareket Et</span></div>
+          <div class="c-item"><span class="c-key">🖱️</span> <span>Ateş Et</span></div>
+          <div class="c-item"><span class="c-key">T</span> <span>Chat Aç</span></div>
+          <div class="c-item"><span class="c-key">TAB</span> <span>Skor Tablosu</span></div>
+          <div class="c-item"><span class="c-key">1</span> <span>Ana Silah</span></div>
+          <div class="c-item"><span class="c-key">2</span> <span>Bıçak</span></div>
+          <div class="c-item"><span class="c-key">R</span> <span>Şarjör Yenile</span></div>
+          <div class="c-item"><span class="c-key">"</span> <span>Yardım Panelini Aç</span></div>
+        </div>
+        <div class="controls-footer">
+          <p><strong>Komutlar:</strong> /help, /ff</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Panel (OP) -->
+    <div id="admin-panel">
+      <div class="admin-panel-close" onclick="closeAdminPanel()">✕</div>
+      <h2>🛠️ YETKİLİ PANELİ</h2>
+
+      <div class="admin-section">
+        <label>Oyun Ayarları</label>
+        <div class="admin-row">
+          <select id="admin-map-select" class="admin-select"></select>
+          <button class="admin-btn change" onclick="adminChangeMap()">Haritayı Değiştir</button>
+        </div>
+        <div class="admin-row">
+          <input type="number" id="admin-kill-limit" class="admin-input" placeholder="Kill Sınırı (örn: 25)">
+          <button class="admin-btn change" onclick="adminSetKillLimit()">Sınırı Güncelle</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <label>Oyuncu Yönetimi</label>
+        <div id="admin-player-list">
+          <!-- JS ile dolacak -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+
+</html>

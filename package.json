@@ -1,0 +1,13 @@
+{
+  "name": "cs-tarzı-nişancı",
+  "version": "1.0.0",
+  "description": "2D Üstten Görünüm Çok Oyunculu Nişancı Oyunu",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

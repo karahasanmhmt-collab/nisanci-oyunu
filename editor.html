@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<title>Harita Editörü — NİŞANCI</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Orbitron:wght@700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0c10;--card:rgba(15,20,30,.97);--border:rgba(255,255,255,.08);--accent:#e74c3c;--blue:#3498db;--green:#2ecc71;--txt:#e8eaf0;--muted:#6b7280}
+body{background:var(--bg);color:var(--txt);font-family:'Rajdhani',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── Login ─────────────────────────── */
+#login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999}
+.login-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:360px;text-align:center}
+.login-card h1{font-family:'Orbitron',sans-serif;font-size:22px;color:var(--accent);margin-bottom:8px;letter-spacing:3px}
+.login-card p{color:var(--muted);font-size:13px;margin-bottom:24px}
+.login-card input{width:100%;padding:12px 16px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:var(--txt);font-size:16px;font-family:'Rajdhani',sans-serif;outline:none;text-align:center;letter-spacing:4px;margin-bottom:14px}
+.login-card input:focus{border-color:var(--accent)}
+.btn{padding:10px 20px;border:none;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn-red{background:var(--accent);color:#fff;width:100%}
+.err{color:var(--accent);font-size:13px;margin-top:10px;min-height:18px}
+
+/* ── Toolbar ────────────────────────── */
+#toolbar{height:56px;background:rgba(8,10,16,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 14px;flex-shrink:0}
+#toolbar .logo{font-family:'Orbitron',sans-serif;font-size:14px;color:var(--accent);letter-spacing:2px;margin-right:8px;white-space:nowrap}
+.sep{width:1px;height:32px;background:var(--border);margin:0 4px}
+.tool-btn{padding:6px 14px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tool-btn:hover{border-color:rgba(255,255,255,.2);color:var(--txt)}
+.tool-btn.active{background:rgba(231,76,60,.2);border-color:var(--accent);color:var(--txt)}
+.tool-btn.t-active{background:rgba(231,76,60,.25);border-color:var(--accent);color:#ff8c7f}
+.tool-btn.ct-active{background:rgba(52,152,219,.25);border-color:var(--blue);color:#7dc5f0}
+.tool-btn.tz-active{background:rgba(255,80,180,.25);border-color:#ff50b4;color:#ff8ed4}
+.tool-btn.ctz-active{background:rgba(200,50,160,.25);border-color:#c832a0;color:#e080cc}
+input[type=text]{padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;color:var(--txt);font-family:'Rajdhani',sans-serif;font-size:14px;width:140px;outline:none}
+input[type=text]:focus{border-color:var(--accent)}
+.btn-sm{padding:6px 16px;border-radius:7px;border:none;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:opacity .2s}
+.btn-sm:hover{opacity:.8}
+.btn-save{background:var(--green);color:#000}
+.btn-load{background:var(--blue);color:#fff}
+.btn-new{background:#f39c12;color:#000}
+.btn-del{background:var(--accent);color:#fff}
+select{padding:6px 10px;background:#0d1117;border:1px solid var(--border);border-radius:7px;color:var(--txt);font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;max-width:130px}
+
+/* ── Statusbar ──────────────────────── */
+#statusbar{height:28px;background:rgba(8,10,16,.9);border-top:1px solid var(--border);display:flex;align-items:center;gap:20px;padding:0 14px;font-size:12px;color:var(--muted);flex-shrink:0}
+#statusbar span{color:var(--txt)}
+
+/* ── Canvas wrapper ─────────────────── */
+#editor-wrap{flex:1;overflow:hidden;position:relative;background:#050608}
+#editor-canvas{display:block;cursor:crosshair}
+#hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);border-radius:8px;padding:6px 16px;font-size:12px;color:var(--muted);pointer-events:none}
+
+/* ── Toast ──────────────────────────── */
+#toast{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:rgba(20,26,38,.95);border:1px solid var(--border);border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login">
+  <div class="login-card">
+    <h1>🗺️ HARİTA EDİTÖRÜ</h1>
+    <p>Devam etmek için editör şifresini girin</p>
+    <input type="password" id="pw-input" placeholder="••••••••" autocomplete="off"/>
+    <button class="btn btn-red" onclick="doLogin()">GİRİŞ</button>
+    <div class="err" id="pw-err"></div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <span class="logo">🗺️ EDİTÖR</span>
+  <div class="sep"></div>
+  <button class="tool-btn active" id="btn-wall"   onclick="setTool('wall')">🧱 Duvar</button>
+  <button class="tool-btn"        id="btn-erase"  onclick="setTool('erase')">🧹 Sil</button>
+  <button class="tool-btn"        id="btn-tspawn" onclick="setTool('tspawn')">🔴 T Spawn</button>
+  <button class="tool-btn"        id="btn-ctspawn"onclick="setTool('ctspawn')">🔵 CT Spawn</button>
+  <button class="tool-btn"        id="btn-tzone"  onclick="setTool('tzone')">🚫 T Yasak</button>
+  <button class="tool-btn"        id="btn-ctzone" onclick="setTool('ctzone')">🚫 CT Yasak</button>
+  <button class="tool-btn"        id="btn-pan"    onclick="setTool('pan')">✋ Kaydır</button>
+  <div class="sep"></div>
+  <button class="btn-sm btn-new" onclick="newMap()">YENİ</button>
+  <input type="text" id="map-name" placeholder="harita_adi" value="harita1"/>
+  <button class="btn-sm btn-save" onclick="saveMap()">💾 KAYDET</button>
+  <div class="sep"></div>
+  <select id="map-list"><option value="">— Map seç —</option></select>
+  <button class="btn-sm btn-load" onclick="loadMap()">📂 YÜKLE</button>
+  <button class="btn-sm btn-del"  onclick="deleteMap()">🗑️ SİL</button>
+  <div class="sep"></div>
+  <button class="tool-btn" onclick="undo()">↩ Geri</button>
+  <button class="tool-btn" onclick="redo()">↪ İleri</button>
+  <div class="sep"></div>
+  <span style="font-size:12px;color:var(--muted)">Izgara:</span>
+  <select id="grid-size" onchange="GRID=+this.value;draw()">
+    <option value="10">10px</option>
+    <option value="20" selected>20px</option>
+    <option value="40">40px</option>
+  </select>
+</div>
+
+<!-- Canvas -->
+<div id="editor-wrap">
+  <canvas id="editor-canvas"></canvas>
+  <div id="hint">Sol tık: çiz/yerleştir &nbsp;|&nbsp; Sağ tık: sil &nbsp;|&nbsp; Tekerlek: zoom &nbsp;|&nbsp; Orta tuş / Space+sürükle: kaydır</div>
+</div>
+
+<!-- Statusbar -->
+<div id="statusbar">
+  <div>Araç: <span id="sb-tool">Duvar</span></div>
+  <div>Fare: <span id="sb-pos">0, 0</span></div>
+  <div>Duvarlar: <span id="sb-walls">0</span></div>
+  <div>T Spawn: <span id="sb-t">0</span></div>
+  <div>CT Spawn: <span id="sb-ct">0</span></div>
+  <div>T Yasak: <span id="sb-tz">0</span></div>
+  <div>CT Yasak: <span id="sb-ctz">0</span></div>
+  <div>Zoom: <span id="sb-zoom">100%</span></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Auth ────────────────────────────────────────────────────
+const PASS_KEY = 'editor_pass';
+let AUTH = sessionStorage.getItem(PASS_KEY) || '';
+
+function doLogin() {
+  const pw = document.getElementById('pw-input').value;
+  fetch('/editor/maps', { headers: { 'x-editor-password': pw } })
+    .then(r => {
+      if (r.status === 401) { document.getElementById('pw-err').textContent = 'Yanlış şifre!'; return; }
+      AUTH = pw;
+      sessionStorage.setItem(PASS_KEY, pw);
+      document.getElementById('login').style.display = 'none';
+      initEditor();
+    }).catch(err => {
+      console.error(err);
+      document.getElementById('pw-err').textContent = 'Sunucuya bağlanılamadı. (Adresin http://localhost:3000/editor.html olduğundan emin olun)';
+    });
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+// Auto-login if session has password
+if (AUTH) {
+  fetch('/editor/maps', { headers: { 'x-editor-password': AUTH } })
+    .then(r => { if (r.ok) { document.getElementById('login').style.display='none'; initEditor(); } })
+    .catch(()=>{});
+}
+
+// ── State ────────────────────────────────────────────────────
+const MAP_W = 1200, MAP_H = 800;
+let walls   = [];
+let spawns  = { T: [], CT: [] };
+let zones   = [];  // [{x,y,w,h,restrict:'T'|'CT'}]
+let tool    = 'wall';
+let GRID    = 20;
+
+// Camera
+let camX = 0, camY = 0, zoom = 1;
+
+// Drawing state
+let drawing = false, drawStart = null, drawRect = null;
+let panning = false, panStart = null, panCamStart = null;
+let spaceDown = false;
+
+// Undo/Redo
+let history = [], future = [];
+function snapshot() {
+  history.push(JSON.stringify({ walls, spawns, zones }));
+  if (history.length > 80) history.shift();
+  future = [];
+}
+function undo() {
+  if (!history.length) return;
+  future.push(JSON.stringify({ walls, spawns, zones }));
+  const s = JSON.parse(history.pop());
+  walls = s.walls; spawns = s.spawns; zones = s.zones || [];
+  draw(); updateSB();
+}
+function redo() {
+  if (!future.length) return;
+  history.push(JSON.stringify({ walls, spawns, zones }));
+  const s = JSON.parse(future.pop());
+  walls = s.walls; spawns = s.spawns; zones = s.zones || [];
+  draw(); updateSB();
+}
+
+// ── Canvas setup ─────────────────────────────────────────────
+const wrap   = document.getElementById('editor-wrap');
+const canvas = document.getElementById('editor-canvas');
+const ctx    = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  draw();
+}
+
+function initEditor() {
+  resize();
+  window.addEventListener('resize', resize);
+  centerView();
+  fetchMapList();
+  setupEvents();
+}
+
+function centerView() {
+  camX = (canvas.width  - MAP_W * zoom) / 2;
+  camY = (canvas.height - MAP_H * zoom) / 2;
+}
+
+// ── Coordinate helpers ───────────────────────────────────────
+function screenToWorld(sx, sy) {
+  return { x: (sx - camX) / zoom, y: (sy - camY) / zoom };
+}
+function snap(v) { return Math.round(v / GRID) * GRID; }
+function snapPt(sx, sy) {
+  const w = screenToWorld(sx, sy);
+  return { x: snap(w.x), y: snap(w.y) };
+}
+
+// ── Draw ─────────────────────────────────────────────────────
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(camX, camY);
+  ctx.scale(zoom, zoom);
+
+  // Void
+  ctx.fillStyle = '#050608';
+  ctx.fillRect(-2000, -2000, 6000, 6000);
+
+  // Map floor
+  ctx.fillStyle = '#111318';
+  ctx.fillRect(0, 0, MAP_W, MAP_H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1 / zoom;
+  for (let x = 0; x <= MAP_W; x += GRID) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,MAP_H); ctx.stroke(); }
+  for (let y = 0; y <= MAP_H; y += GRID) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(MAP_W,y); ctx.stroke(); }
+
+  // Map border
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 2 / zoom;
+  ctx.strokeRect(0, 0, MAP_W, MAP_H);
+
+  // Walls
+  for (const w of walls) {
+    ctx.fillStyle = '#2a3245';
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1 / zoom;
+    ctx.strokeRect(w.x, w.y, w.w, w.h);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(w.x, w.y, w.w, Math.min(4, w.h));
+  }
+
+  // Zones (kısıtlı bölgeler)
+  for (const z of zones) {
+    const isT = z.restrict === 'T';
+    const fillC = isT ? 'rgba(255,80,180,0.22)' : 'rgba(200,50,160,0.22)';
+    const strokeC = isT ? '#ff50b4' : '#c832a0';
+    ctx.fillStyle = fillC;
+    ctx.fillRect(z.x, z.y, z.w, z.h);
+    // Çizgili tarama
+    ctx.save();
+    ctx.beginPath(); ctx.rect(z.x, z.y, z.w, z.h); ctx.clip();
+    ctx.strokeStyle = isT ? 'rgba(255,80,180,0.35)' : 'rgba(200,50,160,0.35)';
+    ctx.lineWidth = 1.5 / zoom;
+    for (let i = -Math.max(z.w,z.h); i < Math.max(z.w,z.h)*2; i += 14) {
+      ctx.beginPath(); ctx.moveTo(z.x+i, z.y); ctx.lineTo(z.x+i+z.h, z.y+z.h); ctx.stroke();
+    }
+    ctx.restore();
+    // Kenarlık
+    ctx.strokeStyle = strokeC;
+    ctx.lineWidth = 2 / zoom;
+    ctx.setLineDash([6/zoom, 3/zoom]);
+    ctx.strokeRect(z.x, z.y, z.w, z.h);
+    ctx.setLineDash([]);
+    // Etiket
+    const label = (isT ? 'T' : 'CT') + ' GİREMEZ';
+    ctx.fillStyle = strokeC;
+    ctx.font = `bold ${11/zoom}px Rajdhani,sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, z.x + z.w/2, z.y + z.h/2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  // Spawns
+  for (const sp of spawns.T) drawSpawn(sp.x, sp.y, 'T');
+  for (const sp of spawns.CT) drawSpawn(sp.x, sp.y, 'CT');
+
+  // Preview rect while drawing
+  if (drawing && drawRect && tool === 'wall') {
+    ctx.fillStyle = 'rgba(231,76,60,0.35)';
+    ctx.fillRect(drawRect.x, drawRect.y, drawRect.w, drawRect.h);
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2/zoom;
+    ctx.strokeRect(drawRect.x, drawRect.y, drawRect.w, drawRect.h);
+    ctx.fillStyle = '#fff'; ctx.font = `${12/zoom}px Rajdhani,sans-serif`;
+    ctx.fillText(`${drawRect.w}×${drawRect.h}`, drawRect.x+4/zoom, drawRect.y-4/zoom);
+  }
+  if (drawing && drawRect && tool === 'erase') {
+    ctx.fillStyle = 'rgba(243,156,18,0.2)';
+    ctx.fillRect(drawRect.x, drawRect.y, drawRect.w, drawRect.h);
+    ctx.strokeStyle = '#f39c12'; ctx.lineWidth = 2/zoom;
+    ctx.setLineDash([6/zoom,3/zoom]); ctx.strokeRect(drawRect.x, drawRect.y, drawRect.w, drawRect.h); ctx.setLineDash([]);
+  }
+  if (drawing && drawRect && (tool==='tzone'||tool==='ctzone')) {
+    const isT = tool==='tzone';
+    ctx.fillStyle = isT ? 'rgba(255,80,180,0.3)' : 'rgba(200,50,160,0.3)';
+    ctx.fillRect(drawRect.x, drawRect.y, drawRect.w, drawRect.h);
+    ctx.strokeStyle = isT ? '#ff50b4' : '#c832a0'; ctx.lineWidth = 2/zoom;
+    ctx.setLineDash([6/zoom,3/zoom]); ctx.strokeRect(drawRect.x, drawRect.y, drawRect.w, drawRect.h); ctx.setLineDash([]);
+    ctx.fillStyle = isT ? '#ff50b4' : '#c832a0'; ctx.font = `${12/zoom}px Rajdhani,sans-serif`;
+    ctx.fillText(`${drawRect.w}×${drawRect.h}`, drawRect.x+4/zoom, drawRect.y-4/zoom);
+  }
+
+  ctx.restore();
+
+  updateSB();
+}
+
+function drawSpawn(x, y, team) {
+  const r = 14;
+  const color = team === 'T' ? '#e74c3c' : '#3498db';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI*2);
+  ctx.fillStyle = color + '44';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2/zoom;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = `bold ${11/zoom}px Rajdhani,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(team, x, y);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+// ── Events ───────────────────────────────────────────────────
+function setupEvents() {
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mousemove', onMove);
+  canvas.addEventListener('mouseup',   onUp);
+  canvas.addEventListener('contextmenu', onRightClick);
+  canvas.addEventListener('wheel', onWheel, { passive: false });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { spaceDown = true; e.preventDefault(); }
+    if ((e.ctrlKey||e.metaKey) && e.key==='z') { e.shiftKey ? redo() : undo(); e.preventDefault(); }
+    if ((e.ctrlKey||e.metaKey) && e.key==='s') { saveMap(); e.preventDefault(); }
+    if (e.key==='1') setTool('wall');
+    if (e.key==='2') setTool('erase');
+    if (e.key==='3') setTool('tspawn');
+    if (e.key==='4') setTool('ctspawn');
+    if (e.key==='5') setTool('pan');
+    if (e.key==='6') setTool('tzone');
+    if (e.key==='7') setTool('ctzone');
+  });
+  window.addEventListener('keyup', e => { if (e.code==='Space') spaceDown = false; });
+}
+
+function onDown(e) {
+  e.preventDefault();
+  if (e.button === 1 || (e.button===0 && spaceDown) || tool==='pan') {
+    panning = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    panCamStart = { x: camX, y: camY };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+  if (e.button === 2) return;
+  if (e.button !== 0) return;
+
+  if (tool === 'wall' || tool === 'erase' || tool === 'tzone' || tool === 'ctzone') {
+    drawing = true;
+    drawStart = snapPt(e.offsetX, e.offsetY);
+    drawRect  = { x: drawStart.x, y: drawStart.y, w: 0, h: 0 };
+  } else if (tool === 'tspawn' || tool === 'ctspawn') {
+    snapshot();
+    const pt = snapPt(e.offsetX, e.offsetY);
+    const team = tool === 'tspawn' ? 'T' : 'CT';
+    spawns[team].push({ x: pt.x, y: pt.y });
+    draw();
+  }
+}
+
+function onMove(e) {
+  const wp = screenToWorld(e.offsetX, e.offsetY);
+  document.getElementById('sb-pos').textContent = `${Math.round(wp.x)}, ${Math.round(wp.y)}`;
+
+  if (panning) {
+    camX = panCamStart.x + (e.clientX - panStart.x);
+    camY = panCamStart.y + (e.clientY - panStart.y);
+    draw(); return;
+  }
+  if (!drawing) return;
+
+  const cur = snapPt(e.offsetX, e.offsetY);
+  drawRect = normalizeRect(drawStart.x, drawStart.y, cur.x, cur.y);
+  draw();
+}
+
+function onUp(e) {
+  if (panning) {
+    panning = false;
+    canvas.style.cursor = tool === 'pan' ? 'grab' : 'crosshair';
+    return;
+  }
+  if (!drawing) return;
+  drawing = false;
+
+  if (!drawRect || drawRect.w < 4 || drawRect.h < 4) { drawRect = null; draw(); return; }
+  snapshot();
+
+  if (tool === 'wall') {
+    walls.push({ ...drawRect });
+  } else if (tool === 'erase') {
+    walls = walls.filter(w => !rectsOverlap(w, drawRect));
+    zones = zones.filter(z => !rectsOverlap(z, drawRect));
+    spawns.T  = spawns.T.filter(s => !pointInRect(s, drawRect));
+    spawns.CT = spawns.CT.filter(s => !pointInRect(s, drawRect));
+  } else if (tool === 'tzone') {
+    zones.push({ ...drawRect, restrict: 'T' });
+  } else if (tool === 'ctzone') {
+    zones.push({ ...drawRect, restrict: 'CT' });
+  }
+  drawRect = null;
+  draw();
+}
+
+function onRightClick(e) {
+  e.preventDefault();
+  // Right-click: delete wall under cursor
+  const pt = screenToWorld(e.offsetX, e.offsetY);
+  snapshot();
+  const prev = walls.length + spawns.T.length + spawns.CT.length + zones.length;
+  walls = walls.filter(w => !pointInRect(pt, w));
+  zones = zones.filter(z => !pointInRect(pt, z));
+  spawns.T  = spawns.T.filter(s  => Math.hypot(s.x-pt.x, s.y-pt.y) > 16);
+  spawns.CT = spawns.CT.filter(s => Math.hypot(s.x-pt.x, s.y-pt.y) > 16);
+  if (walls.length + spawns.T.length + spawns.CT.length + zones.length === prev) history.pop();
+  draw();
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
+  const wx = (e.offsetX - camX) / zoom;
+  const wy = (e.offsetY - camY) / zoom;
+  zoom = Math.max(0.15, Math.min(5, zoom * factor));
+  camX = e.offsetX - wx * zoom;
+  camY = e.offsetY - wy * zoom;
+  document.getElementById('sb-zoom').textContent = Math.round(zoom*100)+'%';
+  draw();
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function normalizeRect(x1,y1,x2,y2) {
+  return { x: Math.min(x1,x2), y: Math.min(y1,y2), w: Math.abs(x2-x1), h: Math.abs(y2-y1) };
+}
+function rectsOverlap(a, b) {
+  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+function pointInRect(p, r) {
+  return p.x >= r.x && p.x <= r.x+r.w && p.y >= r.y && p.y <= r.y+r.h;
+}
+
+// ── Tool switcher ─────────────────────────────────────────────
+function setTool(t) {
+  tool = t;
+  const classes = {
+    wall:'active', erase:'active', tspawn:'t-active', ctspawn:'ct-active',
+    pan:'active', tzone:'tz-active', ctzone:'ctz-active'
+  };
+  ['wall','erase','tspawn','ctspawn','pan','tzone','ctzone'].forEach(id => {
+    const btn = document.getElementById('btn-'+id);
+    if (!btn) return;
+    btn.className = 'tool-btn' + (t===id ? ' '+classes[id] : '');
+  });
+  canvas.style.cursor = t === 'pan' ? 'grab' : 'crosshair';
+  document.getElementById('sb-tool').textContent =
+    {wall:'Duvar',erase:'Sil',tspawn:'T Spawn',ctspawn:'CT Spawn',pan:'Kaydır',tzone:'T Yasak Bölge',ctzone:'CT Yasak Bölge'}[t] || t;
+}
+
+function updateSB() {
+  document.getElementById('sb-walls').textContent = walls.length;
+  document.getElementById('sb-t').textContent   = spawns.T.length;
+  document.getElementById('sb-ct').textContent  = spawns.CT.length;
+  document.getElementById('sb-tz').textContent  = zones.filter(z=>z.restrict==='T').length;
+  document.getElementById('sb-ctz').textContent = zones.filter(z=>z.restrict==='CT').length;
+}
+
+// ── API ───────────────────────────────────────────────────────
+function api(method, url, body) {
+  return fetch(url, {
+    method,
+    headers: { 'Content-Type':'application/json', 'x-editor-password': AUTH },
+    body: body ? JSON.stringify(body) : undefined,
+  }).then(r => r.json());
+}
+
+function fetchMapList() {
+  api('GET', '/editor/maps').then(d => {
+    const sel = document.getElementById('map-list');
+    sel.innerHTML = '<option value="">— Map seç —</option>';
+    (d.maps || []).forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = m;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+async function saveMap() {
+  const name = document.getElementById('map-name').value.trim();
+  if (!name) { toast('⚠️ Map adı gir!', '#f39c12'); return; }
+  const data = { name, width: MAP_W, height: MAP_H, walls, spawns, zones };
+  const res  = await api('POST', '/editor/save', data);
+  if (res.ok) { toast('✅ Kaydedildi: ' + res.name, '#2ecc71'); fetchMapList(); }
+  else         toast('❌ Hata: ' + res.error, '#e74c3c');
+}
+
+async function loadMap() {
+  const name = document.getElementById('map-list').value;
+  if (!name) { toast('⚠️ Bir map seç', '#f39c12'); return; }
+  const data = await api('GET', '/editor/load/' + name);
+  if (data.error) { toast('❌ ' + data.error, '#e74c3c'); return; }
+  snapshot();
+  walls  = data.walls  || [];
+  spawns = data.spawns || { T:[], CT:[] };
+  zones  = data.zones  || [];
+  document.getElementById('map-name').value = data.name;
+  draw();
+  toast('📂 Yüklendi: ' + data.name, '#3498db');
+}
+
+async function deleteMap() {
+  const name = document.getElementById('map-list').value;
+  if (!name) { toast('⚠️ Bir map seç', '#f39c12'); return; }
+  if (!confirm(`"${name}" mapini silmek istediğine emin misin?`)) return;
+  const res = await api('DELETE', '/editor/delete/' + name);
+  if (res.ok) { toast('🗑️ Silindi: ' + name, '#e74c3c'); fetchMapList(); }
+}
+
+function newMap() {
+  if (!confirm('Mevcut çalışmayı temizleyip yeni map açmak istiyor musun?')) return;
+  snapshot();
+  walls = []; spawns = { T:[], CT:[] }; zones = [];
+  document.getElementById('map-name').value = 'harita' + Date.now().toString().slice(-4);
+  draw();
+  toast('🆕 Yeni map oluşturuldu', '#f39c12');
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, color = '#e8eaf0') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.color  = color;
+  el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.style.opacity = '0', 2500);
+}
+</script>
+</body>
+</html>
